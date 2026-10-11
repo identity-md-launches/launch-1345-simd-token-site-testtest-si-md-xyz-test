@@ -42,16 +42,16 @@ node test/browser-check.mjs        # headless Chromium: viewports, interactions,
 
 The browser check needs Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`, or a global install). It starts a throwaway server inside the same process, serves `dist/` under `/preview/`, answers `/simd-coin.json` with the mock, and writes screenshots to `artifacts/screenshots/`.
 
-Results of the last run on the final export (2026-10-11):
+Results of the last run on the final export (2026-10-12, revision after review):
 
 | Command | Result |
 | --- | --- |
 | `npm run typecheck` | exit 0, no errors |
-| `npm run build` | exit 0, `dist/` 200 KB, 9 files |
-| `node test/check-interactions.mjs` | 11 checks passed |
-| `node test/browser-check.mjs` | 44 checks passed, `ALL BROWSER CHECKS PASSED` |
+| `npm run build` | exit 0, `dist/` 200 KB, 11 files |
+| `node test/check-interactions.mjs` | 13 checks passed |
+| `node test/browser-check.mjs` | 54 checks passed, `ALL BROWSER CHECKS PASSED` |
 
-What the browser run covered: 320, 375, 390, 768, 1440 and 1920 px with no horizontal overflow, no console errors, no failed requests, no broken images and no clipped text; first screen at 390 and 1440 shows the logo, headline and Buy button; mobile menu open/close/Escape with focus return; contract copy to the clipboard; how-to-buy tabs with Next/Back and arrow keys; meme generator preview and PNG download; meme wall PNG download; vibe meter; share intents and copy link; confetti on Buy; draggable sticker by pointer and keyboard; keyboard walk with a visible 3 px focus ring on 14 stops; reduced-motion mode; live-feed empty and error states; 14 rendered contrast pairs (lowest 3.91:1 on 52 px display text, every pair under 24 px at 6.25:1 or better). Limitations are listed in `artifacts/validation.md`.
+What the browser run covered: 320, 375, 390, 768, 1440 and 1920 px with no horizontal overflow, no console errors, no failed requests, no broken images and no clipped text; first screen at 390 and 1440 shows the logo, headline and Buy button; mobile menu open/close/Escape with focus return; contract copy to the clipboard; how-to-buy tabs with Next/Back and arrow keys; meme generator preview and PNG download; meme wall PNG download; vibe meter; share intents and copy link; confetti on Buy; draggable sticker by pointer and keyboard; keyboard walk with a visible 3 px focus ring on 14 stops; reduced-motion mode; live-feed empty, zero-volume and error states; 14 rendered contrast pairs (lowest 3.91:1 on 52 px display text, every pair under 24 px at 6.25:1 or better); the regressions from the review: generator captions replace the template word on all 9 templates with no overlapping text, disabled Back/Next look disabled, at 360/390/414 on a 2x screen the drag sticker stays clear of the contract card and its Copy button and the address breaks into two even halves at most, and with scripts disabled every section is visible. Findings, fixes and limitations are listed in `artifacts/validation.md`.
 
 ## Publish
 
@@ -59,7 +59,7 @@ Hosting is handled by the network: the committed `dist/` is pinned and named aft
 
 ## Live data contract
 
-`site/js/coin.js` fetches `/simd-coin.json` (falling back to `./simd-coin.json`) on load and every 30 seconds. It writes name, ticker, chain name, native coin, contract address, Buy and Chart links, the optional X and Telegram links, the four stats (animated between values), and the tokenomics donut, which draws market cap, liquidity and 24h volume as shares of their sum. Missing numbers render as a dash and the status line says so.
+`site/js/coin.js` fetches `/simd-coin.json` (falling back to `./simd-coin.json`) on load and every 30 seconds. It writes name, ticker, chain name, native coin, contract address, Buy and Chart links, the optional X and Telegram links, the four stats (animated between values), and the tokenomics donut, which draws market cap, liquidity and 24h volume as arcs proportional to their sum (no percentage is printed). Missing numbers render as a dash; a reported zero renders as "$0" and counts as a number for the status line, which says "no market numbers yet" only when every value is missing. The contract address is written as two text nodes around a `<wbr>` at its midpoint so a narrow line breaks evenly; `textContent` and the copy button carry the full 42 characters.
 
 ## Layout of the repository
 

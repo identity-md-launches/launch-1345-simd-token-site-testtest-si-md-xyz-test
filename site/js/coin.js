@@ -130,7 +130,12 @@ export function applyIdentity(coin) {
   each('[data-symbol-tag]', (el) => { el.textContent = `$${symbol}`; });
   each('[data-chain-name]', (el) => { el.textContent = coin.chainName || coin.chain || 'the chain'; });
   each('[data-native-coin]', (el) => { el.textContent = nativeCoin(coin); });
-  each('[data-contract]', (el) => { el.textContent = coin.token; });
+  each('[data-contract]', (el) => {
+    // Break the 42-character address at its midpoint when one line cannot hold it,
+    // instead of orphaning the last glyph. textContent and the copy button keep all 42 characters.
+    const mid = Math.ceil(coin.token.length / 2);
+    el.replaceChildren(document.createTextNode(coin.token.slice(0, mid)), document.createElement('wbr'), document.createTextNode(coin.token.slice(mid)));
+  });
   if (coin.buyUrl) each('a[data-buy-link]', (el) => { el.setAttribute('href', coin.buyUrl); });
   if (coin.chartUrl) each('a[data-chart-link]', (el) => { el.setAttribute('href', coin.chartUrl); });
   const x = document.querySelector('a[data-x-link]');
@@ -174,13 +179,11 @@ export function applyDonut(coin) {
       seg.style.strokeDasharray = `${len} ${CIRC - len}`;
       seg.style.strokeDashoffset = `${-offset}`;
     }
-    const pctEl = document.querySelector(`[data-donut-pct="${key}"]`);
-    if (pctEl) pctEl.textContent = total > 0 ? formatNumber(pct, 'pct') : '—';
     offset += len;
   });
   if (caption) {
     caption.textContent = total > 0
-      ? `Shares of ${formatNumber(total, 'usd')} total across market cap, liquidity and 24h volume.`
+      ? 'Market cap, liquidity and 24h volume from the live feed.'
       : 'Waiting for live market data. The donut fills in as soon as the feed reports numbers.';
   }
 }

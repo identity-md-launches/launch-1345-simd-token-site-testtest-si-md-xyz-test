@@ -47,10 +47,21 @@ const logo = (href, x, y, h, extra = '') => {
 };
 
 /**
+ * A word baked into a template, in the top or bottom caption slot.
+ * A typed caption in the same slot replaces it, so text never prints over text.
+ * @typedef {object} SlotWord
+ * @property {string} text
+ * @property {number} y   baseline in the 600×600 view box
+ * @property {number} size font size
+ * @property {string} [fill]
+ */
+
+/**
  * @typedef {object} Template
  * @property {string} id
  * @property {string} name
- * @property {(href: string) => string} draw
+ * @property {(href: string) => string} draw  artwork only, no lettering
+ * @property {{ top?: SlotWord, bottom?: SlotWord }} words
  */
 
 /** @type {Template[]} */
@@ -60,32 +71,36 @@ export const TEMPLATES = [
     name: 'GM',
     draw: (h) => {
       const rays = Array.from({ length: 16 }, (_, i) => `<polygon points="300,300 ${300 + 700 * Math.cos((i / 16) * Math.PI * 2)},${300 + 700 * Math.sin((i / 16) * Math.PI * 2)} ${300 + 700 * Math.cos(((i + 0.5) / 16) * Math.PI * 2)},${300 + 700 * Math.sin(((i + 0.5) / 16) * Math.PI * 2)}" fill="${C.yellow}" opacity=".55"/>`).join('');
-      return `<rect width="600" height="600" fill="${C.green}"/>${rays}<circle cx="300" cy="330" r="150" fill="${C.yellow}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 340, 300)}${word('GM', 300, 120, 120)}`;
+      return `<rect width="600" height="600" fill="${C.green}"/>${rays}<circle cx="300" cy="330" r="150" fill="${C.yellow}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 340, 300)}`;
     },
+    words: { top: { text: 'GM', y: 120, size: 120 } },
   },
   {
     id: 'wagmi',
     name: 'WAGMI',
     draw: (h) => {
       const pts = Array.from({ length: 24 }, (_, i) => { const r = i % 2 ? 190 : 240; const a = (i / 24) * Math.PI * 2; return `${300 + r * Math.cos(a)},${300 + r * Math.sin(a)}`; }).join(' ');
-      return `<rect width="600" height="600" fill="${C.blue}"/><polygon points="${pts}" fill="${C.yellow}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 310, 260)}${word('WAGMI', 300, 560, 96, C.white)}`;
+      return `<rect width="600" height="600" fill="${C.blue}"/><polygon points="${pts}" fill="${C.yellow}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 310, 260)}`;
     },
+    words: { bottom: { text: 'WAGMI', y: 560, size: 96 } },
   },
   {
     id: 'diamond',
     name: 'Diamond hands',
     draw: (h) => {
       const dia = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ s) => `<polygon points="${x},${y - s} ${x + s * 0.8},${y - s * 0.3} ${x},${y + s} ${x - s * 0.8},${y - s * 0.3}" fill="${C.white}" stroke="${C.ink}" stroke-width="6"/><polygon points="${x - s * 0.8},${y - s * 0.3} ${x + s * 0.8},${y - s * 0.3} ${x},${y + s}" fill="${C.blue}" opacity=".5"/>`;
-      return `<rect width="600" height="600" fill="${C.surface}"/>${dia(90, 140, 60)}${dia(510, 120, 50)}${dia(80, 470, 45)}${dia(520, 460, 65)}<circle cx="300" cy="320" r="180" fill="${C.blue}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 320, 280)}${word('DIAMOND', 300, 90, 76)}${word('HANDS', 300, 570, 76)}`;
+      return `<rect width="600" height="600" fill="${C.surface}"/>${dia(90, 140, 60)}${dia(510, 120, 50)}${dia(80, 470, 45)}${dia(520, 460, 65)}<circle cx="300" cy="320" r="180" fill="${C.blue}" stroke="${C.ink}" stroke-width="8"/>${logo(h, 300, 320, 280)}`;
     },
+    words: { top: { text: 'DIAMOND', y: 90, size: 76 }, bottom: { text: 'HANDS', y: 570, size: 76 } },
   },
   {
     id: 'moon',
     name: 'To the moon',
     draw: (h) => {
       const stars = Array.from({ length: 30 }, (_, i) => `<circle cx="${(i * 97) % 600}" cy="${(i * 53) % 600}" r="${2 + (i % 3)}" fill="${C.white}" opacity=".9"/>`).join('');
-      return `<rect width="600" height="600" fill="${C.ink}"/>${stars}<circle cx="470" cy="130" r="80" fill="${C.yellow}" stroke="${C.ink}" stroke-width="6"/><circle cx="440" cy="110" r="14" fill="${C.ink}" opacity=".2"/><circle cx="500" cy="160" r="20" fill="${C.ink}" opacity=".2"/><path d="M60 560 L300 220 L330 240 L120 580 Z" fill="${C.flame}" stroke="${C.ink}" stroke-width="6"/>${logo(h, 320, 300, 240, 'transform="rotate(25 320 300)"')}${word('TO THE MOON', 300, 540, 72)}`;
+      return `<rect width="600" height="600" fill="${C.ink}"/>${stars}<circle cx="470" cy="130" r="80" fill="${C.yellow}" stroke="${C.ink}" stroke-width="6"/><circle cx="440" cy="110" r="14" fill="${C.ink}" opacity=".2"/><circle cx="500" cy="160" r="20" fill="${C.ink}" opacity=".2"/><path d="M60 560 L300 220 L330 240 L120 580 Z" fill="${C.flame}" stroke="${C.ink}" stroke-width="6"/>${logo(h, 320, 300, 240, 'transform="rotate(25 320 300)"')}`;
     },
+    words: { bottom: { text: 'TO THE MOON', y: 540, size: 72 } },
   },
   {
     id: 'server',
@@ -96,34 +111,39 @@ export const TEMPLATES = [
         grid.push(`<rect x="${30 + c * 185}" y="${30 + r * 160}" width="170" height="145" rx="10" fill="${C.greenDark}" stroke="${C.ink}" stroke-width="5"/>`);
         grid.push(logo(h, 115 + c * 185, 102 + r * 160, 120));
       }
-      return `<rect width="600" height="600" fill="${C.surface}"/>${grid.join('')}<rect x="0" y="500" width="600" height="100" fill="${C.green}" stroke="${C.ink}" stroke-width="6"/>${word('RUN THE TEST', 300, 572, 64, C.ink)}`;
+      return `<rect width="600" height="600" fill="${C.surface}"/>${grid.join('')}<rect x="0" y="500" width="600" height="100" fill="${C.green}" stroke="${C.ink}" stroke-width="6"/>`;
     },
+    words: { bottom: { text: 'RUN THE TEST', y: 572, size: 64, fill: C.ink } },
   },
   {
     id: 'fine',
     name: 'This is fine',
     draw: (h) => {
       const flames = Array.from({ length: 9 }, (_, i) => `<path d="M${i * 70} 600 Q${i * 70 + 20} ${420 + (i % 2) * 50} ${i * 70 + 40} ${380 + (i % 3) * 30} Q${i * 70 + 60} ${470} ${i * 70 + 80} 600 Z" fill="${i % 2 ? C.flame : C.flameDark}" stroke="${C.ink}" stroke-width="5"/>`).join('');
-      return `<rect width="600" height="600" fill="${C.flameDark}"/><rect width="600" height="360" fill="${C.blueDark}"/>${flames}<rect x="150" y="300" width="300" height="60" rx="12" fill="${C.yellow}" stroke="${C.ink}" stroke-width="6"/>${logo(h, 300, 240, 260)}${word('THIS IS FINE', 300, 90, 80)}`;
+      return `<rect width="600" height="600" fill="${C.flameDark}"/><rect width="600" height="360" fill="${C.blueDark}"/>${flames}<rect x="150" y="300" width="300" height="60" rx="12" fill="${C.yellow}" stroke="${C.ink}" stroke-width="6"/>${logo(h, 300, 240, 260)}`;
     },
+    words: { top: { text: 'THIS IS FINE', y: 90, size: 80 } },
   },
   {
     id: 'stickers',
     name: 'Sticker sheet',
     draw: (h) => {
       const spots = [[120, 130, -15], [300, 110, 8], [480, 140, 20], [110, 330, 12], [300, 330, -6], [490, 340, -18], [200, 510, 22], [410, 505, -10]];
-      return `<rect width="600" height="600" fill="${C.yellow}"/>${spots.map(([x, y, r]) => `<g transform="rotate(${r} ${x} ${y})"><circle cx="${x}" cy="${y}" r="78" fill="${C.white}" stroke="${C.ink}" stroke-width="6"/>${logo(h, x, y, 120)}</g>`).join('')}${word('$TEST', 300, 580, 56, C.ink)}`;
+      return `<rect width="600" height="600" fill="${C.yellow}"/>${spots.map(([x, y, r]) => `<g transform="rotate(${r} ${x} ${y})"><circle cx="${x}" cy="${y}" r="78" fill="${C.white}" stroke="${C.ink}" stroke-width="6"/>${logo(h, x, y, 120)}</g>`).join('')}`;
     },
+    words: { bottom: { text: '$TEST', y: 580, size: 56, fill: C.ink } },
   },
   {
     id: 'poster',
     name: 'Halftone poster',
-    draw: (h) => `<defs><pattern id="ht" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="${C.ink}" opacity=".35"/></pattern></defs><rect width="600" height="600" fill="${C.green}"/><rect width="600" height="600" fill="url(#ht)"/><rect x="40" y="40" width="520" height="520" rx="24" fill="none" stroke="${C.ink}" stroke-width="10"/>${logo(h, 300, 290, 380)}<rect x="60" y="470" width="480" height="90" rx="16" fill="${C.ink}"/>${word('$TEST', 300, 540, 80, C.yellow)}`,
+    draw: (h) => `<defs><pattern id="ht" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="${C.ink}" opacity=".35"/></pattern></defs><rect width="600" height="600" fill="${C.green}"/><rect width="600" height="600" fill="url(#ht)"/><rect x="40" y="40" width="520" height="520" rx="24" fill="none" stroke="${C.ink}" stroke-width="10"/>${logo(h, 300, 290, 380)}<rect x="60" y="470" width="480" height="90" rx="16" fill="${C.ink}"/>`,
+    words: { bottom: { text: '$TEST', y: 540, size: 80, fill: C.yellow } },
   },
   {
     id: 'stonks',
     name: 'Stonks',
-    draw: (h) => `<rect width="600" height="600" fill="${C.blueDark}"/><g stroke="${C.ink}" stroke-width="2" opacity=".25">${Array.from({ length: 10 }, (_, i) => `<line x1="0" y1="${i * 60}" x2="600" y2="${i * 60}"/><line x1="${i * 60}" y1="0" x2="${i * 60}" y2="600"/>`).join('')}</g><polyline points="40,520 140,470 200,500 290,380 350,420 430,260 500,300 560,120" fill="none" stroke="${C.green}" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/><polygon points="560,120 500,130 545,185" fill="${C.green}" stroke="${C.ink}" stroke-width="4"/>${logo(h, 190, 230, 280)}${word('STONKS', 300, 570, 90)}`,
+    draw: (h) => `<rect width="600" height="600" fill="${C.blueDark}"/><g stroke="${C.ink}" stroke-width="2" opacity=".25">${Array.from({ length: 10 }, (_, i) => `<line x1="0" y1="${i * 60}" x2="600" y2="${i * 60}"/><line x1="${i * 60}" y1="0" x2="${i * 60}" y2="600"/>`).join('')}</g><polyline points="40,520 140,470 200,500 290,380 350,420 430,260 500,300 560,120" fill="none" stroke="${C.green}" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/><polygon points="560,120 500,130 545,185" fill="${C.green}" stroke="${C.ink}" stroke-width="4"/>${logo(h, 190, 230, 280)}`,
+    words: { bottom: { text: 'STONKS', y: 570, size: 90 } },
   },
 ];
 
@@ -134,10 +154,21 @@ export const TEMPLATES = [
  * @param {string} [fontCss]
  */
 export function renderSvg(t, href, caption = {}, fontCss = '') {
-  const top = (caption.top || '').trim();
-  const bottom = (caption.bottom || '').trim();
   const sizeFor = (/** @type {string} */ s) => Math.max(30, Math.min(64, Math.round(1100 / Math.max(10, s.length))));
-  const captions = `${top ? word(top, 300, 20 + sizeFor(top), sizeFor(top)) : ''}${bottom ? word(bottom, 300, 580, sizeFor(bottom)) : ''}`;
+  /**
+   * One caption slot: a typed caption replaces the template word that lives there;
+   * with nothing typed the template word is drawn as on the wall.
+   * @param {'top' | 'bottom'} slot
+   */
+  const slotText = (slot) => {
+    const typed = (caption[slot] || '').trim();
+    const w = t.words[slot];
+    if (!typed) return w ? word(w.text, 300, w.y, w.size, w.fill) : '';
+    const size = Math.min(sizeFor(typed), w ? w.size : 64);
+    const y = w ? w.y : slot === 'top' ? 20 + size : 580;
+    return word(typed, 300, y, size, w ? w.fill : C.white);
+  };
+  const captions = slotText('top') + slotText('bottom');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" height="${SIZE}" role="img" aria-label="${esc(t.name)} meme with the TEST logo">${fontCss ? `<style>${fontCss}</style>` : ''}${t.draw(href)}${captions}</svg>`;
 }
 

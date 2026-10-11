@@ -233,8 +233,11 @@ button { font: inherit; color: inherit; }
 }
 @media (hover: hover) {
   .btn:hover { background: var(--btn-bg-hover); }
+  .btn:disabled:hover { background: var(--btn-bg); }
 }
 .btn:active { background: var(--btn-bg-active); transform: scale(0.96); box-shadow: 2px 2px 0 var(--color-outline); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn:disabled:active { background: var(--btn-bg); }
 .btn--primary { --btn-bg: var(--color-green); --btn-fg: var(--color-ink); --btn-bg-hover: var(--color-green-hover); --btn-bg-active: var(--color-green-active); }
 .btn--secondary { --btn-bg: var(--color-blue); --btn-fg: var(--white); --btn-bg-hover: var(--color-blue-hover); --btn-bg-active: var(--color-blue-active); }
 .btn--ghost { --btn-bg: var(--color-surface); --btn-bg-hover: var(--color-surface-2); --btn-bg-active: var(--color-bg-alt); border-color: var(--color-border); box-shadow: none; }
@@ -361,7 +364,8 @@ button { font: inherit; color: inherit; }
 .hero {
   position: relative;
   overflow: clip;
-  padding-block: var(--space-6) var(--space-8);
+  /* Below 48rem the hero stacks and the drag sticker needs its own band under the contract card. */
+  padding-block: var(--space-6) calc(var(--space-8) + 7rem);
   background:
     radial-gradient(60% 50% at 20% 20%, color-mix(in oklab, var(--color-blue) 35%, transparent), transparent 70%),
     radial-gradient(50% 50% at 85% 80%, color-mix(in oklab, var(--color-green) 25%, transparent), transparent 70%),
@@ -482,7 +486,12 @@ button { font: inherit; color: inherit; }
 }
 .contract--big .contract__value { font-size: var(--text-base); }
 @media (min-width: 48rem) {
-  .contract { grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3) var(--space-4); }
+  .contract--big { grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3) var(--space-4); }
+}
+@media (min-width: 64rem) {
+  /* The hero copy column is too narrow for an inline label / address / button row below 64rem:
+     the address would get about 116px and wrap into four pieces. */
+  .contract--hero { grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3) var(--space-4); }
 }
 
 /* --- Drag sticker -------------------------------------------------------- */
@@ -688,20 +697,19 @@ button { font: inherit; color: inherit; }
 .donut__legend { display: grid; gap: var(--space-3); }
 .donut__item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas: "swatch name pct" "swatch val val";
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "swatch name" "swatch val";
   align-items: center;
   column-gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-2);
-  border-radius: var(--radius-md);
+  padding: var(--space-3) 0;
+  border-block-end: 2px solid var(--color-border);
 }
+.donut__item:last-child { border-block-end: 0; }
 .donut__swatch { grid-area: swatch; width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 2px solid var(--color-outline); }
 .donut__swatch--mcap { background: var(--color-green); }
 .donut__swatch--liq { background: var(--color-blue); }
 .donut__swatch--vol { background: var(--color-yellow); }
 .donut__name { grid-area: name; font-weight: 700; }
-.donut__pct { grid-area: pct; font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
 .donut__val { grid-area: val; font-size: var(--text-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 @media (min-width: 48rem) { .donut { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
@@ -851,8 +859,9 @@ button { font: inherit; color: inherit; }
   .hero__sticker-1 { animation: wiggle 4s ease-in-out infinite; }
   .hero__sticker-2 { animation: wiggle 5s ease-in-out infinite reverse; }
 
-  .reveal { opacity: 0; translate: 0 24px; transition: opacity 600ms var(--ease-out), translate 600ms var(--ease-out); }
-  .reveal.is-visible { opacity: 1; translate: 0 0; }
+  /* Hidden only once main.js has marked the document, so the content shows without scripts. */
+  .js .reveal { opacity: 0; translate: 0 24px; transition: opacity 600ms var(--ease-out), translate 600ms var(--ease-out); }
+  .js .reveal.is-visible { opacity: 1; translate: 0 0; }
   .reveal:nth-child(2) { transition-delay: 100ms; }
   .reveal:nth-child(3) { transition-delay: 200ms; }
   .beats .reveal:nth-child(1) { transition-delay: 0ms; }
@@ -861,6 +870,7 @@ button { font: inherit; color: inherit; }
 
   @media (hover: hover) {
     .btn:hover { animation: wobble 500ms var(--ease-out) 1; }
+    .btn:disabled:hover { animation: none; }
     .meme:hover { translate: 0 -6px; rotate: -1deg; }
     .sticker:hover { animation: wobble 500ms var(--ease-out) 1; }
   }

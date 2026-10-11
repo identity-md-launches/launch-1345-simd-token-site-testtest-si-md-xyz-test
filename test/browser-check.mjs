@@ -20,8 +20,11 @@ mkdirSync(shots, { recursive: true });
 async function loadPlaywright() {
   try { return await import('playwright'); } catch { /* try global */ }
   const require = createRequire(import.meta.url);
-  const globalRoot = resolve(process.execPath, '../../lib/node_modules/playwright');
-  return require(globalRoot);
+  const globalLib = resolve(process.execPath, '../../lib/node_modules');
+  for (const candidate of [join(globalLib, 'playwright'), join(globalLib, '@playwright/test/node_modules/playwright'), join(globalLib, '@playwright/mcp/node_modules/playwright')]) {
+    if (existsSync(candidate)) return require(candidate);
+  }
+  throw new Error('playwright not found: npm i -D playwright && npx playwright install chromium');
 }
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json' };
@@ -30,7 +33,8 @@ const server = createServer((req, res) => {
   const url = new URL(req.url || '/', 'http://x');
   if (url.pathname === '/simd-coin.json') {
     const data = JSON.parse(readFileSync(join(root, 'mock/simd-coin.json'), 'utf8'));
-    if (marketMode === 'null') data.market = { priceUsd: null, marketCap: null, liquidityUsd: null, volume24h: 0 };
+    if (marketMode === 'null') data.market = { priceUsd: null, marketCap: null, liquidityUsd: null, volume24h: null };
+    if (marketMode === 'zero') data.market = { priceUsd: null, marketCap: null, liquidityUsd: null, volume24h: 0 }; // what the host returns today
     if (marketMode === 'error') { res.writeHead(500); res.end('nope'); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
@@ -130,9 +134,12 @@ try {
     assert.equal(await page.locator('.stat [data-stat="marketCap"]').textContent(), '$42.7K');
     assert.equal(await page.locator('.hero__actions [data-buy-link]').getAttribute('href'), 'https://dexscreener.com/solana/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF');
     assert.ok((await page.locator('[data-stats-status]').textContent())?.startsWith('Updated at'));
-    const pct = await page.locator('[data-donut-pct="marketCap"]').textContent();
-    assert.equal(pct, '65.7%');
-    log(`ok - live data: price ${price}, market cap $42.7K, donut 65.7% market cap, buy/chart links set from feed`);
+    assert.equal(await page.locator('[data-donut-caption]').textContent(), 'Market cap, liquidity and 24h volume from the live feed.');
+    assert.equal(await page.locator('.donut__item').count(), 3);
+    assert.equal(await page.locator('.donut__pct').count(), 0);
+    const mcapArc = await page.locator('[data-donut-seg="marketCap"]').evaluate((el) => parseFloat(el.style.strokeDasharray));
+    assert.ok(Math.abs(mcapArc - 0.657 * 2 * Math.PI * 80) < 2, `market cap arc ${mcapArc}`);
+    log(`ok - live data: price ${price}, market cap $42.7K, donut arc 65.7% market cap with no percentage column, buy/chart links set from feed`);
 
     // mobile menu
     const toggle = page.locator('[data-nav-toggle]');
@@ -170,7 +177,11 @@ try {
     await page.locator('#gen-bottom').fill('APPROVED');
     await page.locator('[data-gen-template="stonks"]').click();
     const previewSvg = await page.locator('[data-gen-preview] svg').innerHTML();
-    assert.ok(previewSvg.includes('>FROG<') && previewSvg.includes('>APPROVED<') && previewSvg.includes('STONKS'));
+    // The typed bottom caption replaces the template's own STONKS word; nothing prints over anything.
+    assert.ok(previewSvg.includes('>FROG<') && previewSvg.includes('>APPROVED<') && !previewSvg.includes('>STONKS<'));
+    await page.locator('#gen-bottom').fill('');
+    assert.ok((await page.locator('[data-gen-preview] svg').innerHTML()).includes('>STONKS<'), 'template word returns when the caption is cleared');
+    await page.locator('#gen-bottom').fill('APPROVED');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-gen-download]').click()]);
     const dlPath = await dl.path();
     const bytes = readFileSync(dlPath);
@@ -307,6 +318,12 @@ try {
     await page.waitForTimeout(900);
     await page.locator('#stats').screenshot({ path: join(shots, 'stats-empty-1440.jpg'), type: 'jpeg', quality: 70 });
     log('ok - empty feed: dashes, waiting caption, honest status line');
+    marketMode = 'zero';
+    await page.goto(base, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+    assert.equal(await page.locator('.stat [data-stat="volume24h"]').textContent(), '$0');
+    assert.ok((await page.locator('[data-stats-status]').textContent()).startsWith('Updated at'));
+    log('ok - feed with volume24h 0 and the rest null: "$0" shows under a status line that says Updated, not "no market numbers"');
     marketMode = 'error';
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
@@ -348,6 +365,81 @@ try {
       log(`ok - contrast ${p.ratio}:1 ${p.label} (${p.fg} on ${p.bg}, ${p.size})`);
     }
     await page.close();
+  }
+
+  // --- Regressions from the review: text over text, control over control, orphaned glyph, disabled look, no-JS content ---
+  {
+    const overlap = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
+    // Generator: with the default captions no two <text> nodes in the preview overlap, on every template.
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.goto(base, { waitUntil: 'networkidle' });
+    await page.evaluate(() => document.fonts.ready);
+    const chips = await page.locator('[data-gen-template]').all();
+    for (const chip of chips) {
+      await chip.click();
+      const boxes = await page.evaluate(() => Array.from(document.querySelectorAll('[data-gen-preview] text')).map((t) => ({ txt: t.textContent, box: t.getBoundingClientRect().toJSON() })));
+      assert.equal(boxes.length, 2, `${await chip.textContent()}: ${boxes.map((b) => b.txt).join('|')}`);
+      assert.equal(overlap(boxes[0].box, boxes[1].box), 0, `${await chip.textContent()}: captions overlap`);
+    }
+    await page.locator('[data-gen-template="gm"]').click();
+    await page.locator('#generator').screenshot({ path: join(shots, 'generator-1440.jpg'), type: 'jpeg', quality: 70 });
+    log(`ok - generator: on all ${chips.length} templates the typed captions replace the template word; no text node overlaps another`);
+
+    // Disabled Back on step 1 looks disabled.
+    const back = await page.locator('[data-step-prev]').evaluate((b) => { const cs = getComputedStyle(b); return { disabled: b.disabled, opacity: cs.opacity, cursor: cs.cursor }; });
+    assert.deepEqual(back, { disabled: true, opacity: '0.45', cursor: 'not-allowed' });
+    log('ok - how-to-buy: disabled Back renders at 45% opacity with a not-allowed cursor');
+    await page.close();
+
+    // Phones at 2x: the sticker stays clear of the contract card and its Copy button; the address breaks into two even halves.
+    for (const w of [360, 390, 414]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      const p = await ctx.newPage();
+      await p.goto(base, { waitUntil: 'networkidle' });
+      await p.evaluate(() => document.fonts.ready);
+      const r = await p.evaluate(() => {
+        const st = document.querySelector('[data-drag-sticker]').getBoundingClientRect().toJSON();
+        const card = document.querySelector('.contract--hero').getBoundingClientRect().toJSON();
+        const btn = document.querySelector('.contract--hero button').getBoundingClientRect().toJSON();
+        btn.scrollIntoView?.();
+        const code = document.querySelector('.contract--hero .contract__value');
+        const range = document.createRange(); range.selectNodeContents(code);
+        const lines = [...new Set(Array.from(range.getClientRects()).filter((b) => b.width > 0).map((b) => Math.round(b.top)))].length;
+        return { st, card, btn, lines, text: code.textContent, heroBottom: document.querySelector('.hero').getBoundingClientRect().bottom };
+      });
+      assert.equal(overlap(r.st, r.card), 0, `${w}px: sticker overlaps the contract card`);
+      assert.equal(overlap(r.st, r.btn), 0, `${w}px: sticker overlaps the Copy button`);
+      assert.ok(r.st.bottom <= r.heroBottom + 1, `${w}px: sticker inside the hero`);
+      assert.equal(r.text, '0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF');
+      assert.ok(r.lines <= 2, `${w}px: address on ${r.lines} lines`);
+      await p.locator('.contract--hero button').scrollIntoViewIfNeeded();
+      const hit = await p.evaluate(() => { const b = document.querySelector('.contract--hero button').getBoundingClientRect(); return [0.5, 0.8, 0.9, 0.97].map((f) => document.elementFromPoint(b.left + b.width * f, b.top + b.height / 2) === document.querySelector('.contract--hero button')); });
+      assert.ok(hit.every(Boolean), `${w}px: Copy button not hit-testable along its width: ${hit}`);
+      if (w === 390) await p.locator('.hero').screenshot({ path: join(shots, 'hero-390-2x.jpg'), type: 'jpeg', quality: 70 });
+      log(`ok - ${w}px at 2x: sticker clear of the contract card and Copy button (button hit at 50/80/90/97% of its width); address on ${r.lines} line${r.lines > 1 ? 's of 21 characters' : ''}`);
+      await ctx.close();
+    }
+    // Tablet and desktop: the hero address never breaks into more than two pieces.
+    for (const w of [768, 1024, 1440]) {
+      const p = await browser.newPage({ viewport: { width: w, height: 900 } });
+      await p.goto(base, { waitUntil: 'networkidle' });
+      await p.evaluate(() => document.fonts.ready);
+      const lines = await p.evaluate(() => Array.from(document.querySelectorAll('.contract__value')).map((code) => { const range = document.createRange(); range.selectNodeContents(code); return [...new Set(Array.from(range.getClientRects()).filter((b) => b.width > 0).map((b) => Math.round(b.top)))].length; }));
+      assert.ok(lines.every((n) => n <= 2), `${w}px: address lines ${lines}`);
+      log(`ok - ${w}px: contract address on ${lines.join(' and ')} line(s) in the hero and buy sections`);
+      await p.close();
+    }
+
+    // Without JavaScript every section is visible; with it, the reveal blocks start hidden and show on scroll.
+    const noJs = await browser.newContext({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
+    const np = await noJs.newPage();
+    await np.goto(base, { waitUntil: 'networkidle' });
+    const shown = await np.evaluate(() => { const els = Array.from(document.querySelectorAll('.reveal')); return { total: els.length, visible: els.filter((e) => getComputedStyle(e).opacity === '1').length, js: document.documentElement.classList.contains('js') }; });
+    assert.equal(shown.visible, shown.total); assert.equal(shown.js, false);
+    await np.screenshot({ path: join(shots, 'no-js-390-full.jpg'), type: 'jpeg', quality: 50, fullPage: true });
+    await noJs.close();
+    log(`ok - scripts disabled: all ${shown.total} reveal blocks visible (no .js marker on <html>)`);
   }
 
   log('\nALL BROWSER CHECKS PASSED');

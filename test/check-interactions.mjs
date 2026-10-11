@@ -52,7 +52,9 @@ await check('required copy: footer line, contract, no wallet/tracker scripts', (
   assert.ok(html.includes('Website built by the'));
   assert.ok(html.includes('Identity.md swarm on si-md.xyz'));
   assert.ok(html.includes('not financial advice'));
-  assert.equal((html.match(/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF/g) || []).length >= 2, true);
+  // The address carries one <wbr> at its midpoint so a narrow line breaks into two even halves.
+  assert.equal((html.match(/0x697213C3747a6d4F83f<wbr>8d2d8C0cC7f44a5edfffF/g) || []).length >= 2, true);
+  assert.ok(html.includes('dexscreener.com/solana/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF'));
   assert.ok(!/gtag|googletagmanager|analytics|wagmi|rainbowkit|<form/i.test(html));
 });
 
@@ -95,6 +97,34 @@ await check('meme wall has at least 8 templates, each a valid SVG using the logo
     assert.ok(svg.includes('./assets/logo.png'));
     assert.ok(svg.endsWith('</svg>'));
   }
+});
+
+await check('a typed caption replaces the template word in its slot instead of printing over it', () => {
+  for (const t of TEMPLATES) {
+    const slots = Object.entries(t.words).filter(([, w]) => w).map(([s, w]) => ({ slot: s, text: /** @type {{ text: string }} */ (w).text }));
+    assert.ok(slots.length >= 1 && slots.every(({ slot }) => slot === 'top' || slot === 'bottom'), `${t.id} slots`);
+    const plain = renderSvg(t, 'x.png');
+    for (const { text } of slots) assert.ok(plain.includes(`>${esc(text)}<`), `${t.id}: wall shows ${text}`);
+    assert.ok(!/<text\b/.test(t.draw('x.png')), `${t.id}: draw() must not contain lettering`);
+    const typed = renderSvg(t, 'x.png', { top: 'TOP LINE', bottom: 'BOTTOM LINE' });
+    for (const { text } of slots) assert.ok(!typed.includes(`>${esc(text)}<`), `${t.id}: ${text} hidden under a caption`);
+    assert.ok(typed.includes('>TOP LINE<') && typed.includes('>BOTTOM LINE<'));
+    assert.equal((typed.match(/<text\b/g) || []).length, 2, `${t.id}: exactly two text nodes with both captions`);
+    // A caption in one slot leaves the other slot's template word in place.
+    const half = renderSvg(t, 'x.png', { top: 'ONLY TOP' });
+    if (t.words.bottom) assert.ok(half.includes(`>${esc(t.words.bottom.text)}<`));
+    if (t.words.top) assert.ok(!half.includes(`>${esc(t.words.top.text)}<`));
+  }
+});
+
+await check('stylesheet: disabled buttons look disabled, reveals hide only under .js, legend rows are plain', () => {
+  const css = readFileSync(join(dist, 'assets/styles.css'), 'utf8');
+  assert.ok(/\.btn:disabled\{opacity:\.45;cursor:not-allowed/.test(css));
+  assert.ok(css.includes('.js .reveal{opacity:0'));
+  assert.ok(!/(?<!\.js )\.reveal\{opacity:0/.test(css), 'reveal must not hide without the js marker');
+  assert.ok(!css.includes('donut__pct') && !html.includes('donut__pct'));
+  const js = readFileSync(join(dist, 'assets/index.js'), 'utf8');
+  assert.ok(js.includes('classList.add("js")'));
 });
 
 await check('generator captions are escaped so user text cannot inject markup', () => {

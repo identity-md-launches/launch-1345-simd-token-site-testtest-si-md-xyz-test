@@ -2,6 +2,10 @@ import { applyIdentity, applyMarket, startLiveLoop, REFRESH_MS } from './coin.js
 import { initMemeWall, initGenerator } from './memes.js';
 import { initNav, initSteps, initCopy, initConfetti, initMagnetic, initDragSticker, initVibe, initReveal, applyShareLinks } from './fx.js';
 
+// Mark the document as scripted first: the scroll-reveal styles only hide content under .js,
+// so a page without scripts shows every section.
+document.documentElement.classList.add('js');
+
 const SITE_URL = 'https://testtest.si-md.xyz/';
 
 /** @template {Element} T @param {string} sel @returns {T} */
@@ -46,7 +50,7 @@ function main() {
       applyMarket(coin);
       applyShareLinks(coin.symbol || 'TEST', SITE_URL);
       const m = coin.market;
-      const hasNumbers = [m.priceUsd, m.marketCap, m.volume24h, m.liquidityUsd].some((v) => typeof v === 'number' && Number.isFinite(v) && v > 0);
+      const hasNumbers = [m.priceUsd, m.marketCap, m.volume24h, m.liquidityUsd].some((v) => typeof v === 'number' && Number.isFinite(v));
       const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       status.textContent = hasNumbers
         ? `Updated at ${time}. Refreshes every ${seconds} seconds.`
