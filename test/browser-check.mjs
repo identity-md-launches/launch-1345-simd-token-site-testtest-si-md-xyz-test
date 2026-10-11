@@ -36,6 +36,7 @@ const server = createServer((req, res) => {
     if (marketMode === 'null') data.market = { priceUsd: null, marketCap: null, liquidityUsd: null, volume24h: null };
     if (marketMode === 'zero') data.market = { priceUsd: null, marketCap: null, liquidityUsd: null, volume24h: 0 }; // what the host returns today
     if (marketMode === 'error') { res.writeHead(500); res.end('nope'); return; }
+    if (marketMode === 'nosocial') { data.x = null; data.telegram = null; } // what the host returns today for this label
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
     return;
@@ -331,6 +332,46 @@ try {
     log('ok - feed error: status says live data is unavailable and will retry');
     marketMode = 'mock';
     await page.close();
+  }
+
+  // --- Community links: only the ones the feed supplies are drawn (review finding d85aa7ae) ---
+  {
+    const readLinks = (page) => page.evaluate(() => {
+      const read = (sel) => { const el = document.querySelector(sel); const r = el.getBoundingClientRect(); return { hidden: el.hidden, display: getComputedStyle(el).display, href: el.getAttribute('href'), w: Math.round(r.width), visible: el.checkVisibility() }; };
+      return { x: read('a[data-x-link]'), tg: read('a[data-telegram-link]') };
+    });
+    for (const width of [1440, 390]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      // Before the feed answers: both links carry `hidden` and must not be drawn.
+      await page.route('**/simd-coin.json', () => {});
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      let links = await readLinks(page);
+      for (const [name, l] of Object.entries(links)) assert.ok(l.hidden && l.display === 'none' && !l.visible && l.w === 0, `${name} drawn before the feed answered at ${width}: ${JSON.stringify(l)}`);
+      await page.unroute('**/simd-coin.json');
+      // Host feed today: x null, telegram null -> neither link is drawn, Copy site link remains.
+      marketMode = 'nosocial';
+      await page.goto(base, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(400);
+      links = await readLinks(page);
+      for (const [name, l] of Object.entries(links)) assert.ok(l.hidden && l.display === 'none' && !l.visible && l.w === 0, `${name} drawn with no URL at ${width}: ${JSON.stringify(l)}`);
+      assert.ok(await page.locator('.cta__links [data-copy-link]').isVisible());
+      const drawn = await page.locator('.cta__links a, .cta__links button').evaluateAll((els) => els.filter((e) => e.checkVisibility()).length);
+      assert.equal(drawn, 1, `expected only Copy site link in .cta__links, found ${drawn}`);
+      await page.locator('#community').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(900);
+      await page.locator('#community').screenshot({ path: join(shots, `join-nosocial-${width}.jpg`), type: 'jpeg', quality: 70 });
+      // Mock feed: x set, telegram null -> X drawn with its URL, Telegram not drawn.
+      marketMode = 'mock';
+      await page.goto(base, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(400);
+      links = await readLinks(page);
+      assert.ok(!links.x.hidden && links.x.visible && links.x.href.startsWith('https://x.com/'), `X link not drawn with the feed URL at ${width}: ${JSON.stringify(links.x)}`);
+      assert.ok(links.tg.hidden && links.tg.display === 'none' && !links.tg.visible, `Telegram drawn with no URL at ${width}: ${JSON.stringify(links.tg)}`);
+      const dead = await page.locator('a[href="#"]').evaluateAll((els) => els.filter((e) => e.checkVisibility()).map((e) => e.textContent.trim()));
+      assert.deepEqual(dead, [], `visible dead links: ${dead.join(', ')}`);
+      await page.close();
+    }
+    log('ok - community links: hidden X/Telegram are not drawn before the feed, with a feed lacking them, or at 390; X shows only with its URL; no visible href="#" link');
   }
 
   // --- Contrast of the rendered token pairs (WCAG 2 relative luminance) ---

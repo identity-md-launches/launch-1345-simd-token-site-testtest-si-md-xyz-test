@@ -42,16 +42,16 @@ node test/browser-check.mjs        # headless Chromium: viewports, interactions,
 
 The browser check needs Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`, or a global install). It starts a throwaway server inside the same process, serves `dist/` under `/preview/`, answers `/simd-coin.json` with the mock, and writes screenshots to `artifacts/screenshots/`.
 
-Results of the last run on the final export (2026-10-12, revision after review):
+Results of the last run on the final export (2026-10-11, second revision after review):
 
 | Command | Result |
 | --- | --- |
 | `npm run typecheck` | exit 0, no errors |
 | `npm run build` | exit 0, `dist/` 200 KB, 11 files |
-| `node test/check-interactions.mjs` | 13 checks passed |
-| `node test/browser-check.mjs` | 54 checks passed, `ALL BROWSER CHECKS PASSED` |
+| `node test/check-interactions.mjs` | 14 checks passed |
+| `node test/browser-check.mjs` | 55 checks passed, `ALL BROWSER CHECKS PASSED` |
 
-What the browser run covered: 320, 375, 390, 768, 1440 and 1920 px with no horizontal overflow, no console errors, no failed requests, no broken images and no clipped text; first screen at 390 and 1440 shows the logo, headline and Buy button; mobile menu open/close/Escape with focus return; contract copy to the clipboard; how-to-buy tabs with Next/Back and arrow keys; meme generator preview and PNG download; meme wall PNG download; vibe meter; share intents and copy link; confetti on Buy; draggable sticker by pointer and keyboard; keyboard walk with a visible 3 px focus ring on 14 stops; reduced-motion mode; live-feed empty, zero-volume and error states; 14 rendered contrast pairs (lowest 3.91:1 on 52 px display text, every pair under 24 px at 6.25:1 or better); the regressions from the review: generator captions replace the template word on all 9 templates with no overlapping text, disabled Back/Next look disabled, at 360/390/414 on a 2x screen the drag sticker stays clear of the contract card and its Copy button and the address breaks into two even halves at most, and with scripts disabled every section is visible. Findings, fixes and limitations are listed in `artifacts/validation.md`.
+What the browser run covered: 320, 375, 390, 768, 1440 and 1920 px with no horizontal overflow, no console errors, no failed requests, no broken images and no clipped text; first screen at 390 and 1440 shows the logo, headline and Buy button; mobile menu open/close/Escape with focus return; contract copy to the clipboard; how-to-buy tabs with Next/Back and arrow keys; meme generator preview and PNG download; meme wall PNG download; vibe meter; share intents and copy link; confetti on Buy; draggable sticker by pointer and keyboard; keyboard walk with a visible 3 px focus ring on 14 stops; reduced-motion mode; live-feed empty, zero-volume and error states; 14 rendered contrast pairs (lowest 3.91:1 on 52 px display text, every pair under 24 px at 6.25:1 or better); the regressions from the review: generator captions replace the template word on all 9 templates with no overlapping text, disabled Back/Next look disabled, at 360/390/414 on a 2x screen the drag sticker stays clear of the contract card and its Copy button and the address breaks into two even halves at most, and with scripts disabled every section is visible; from the second review: the Follow on X and Join the Telegram links are not drawn before the feed answers, nor with a feed whose `x` and `telegram` are null (what the host returns for this label today), at 1440 and 390, X shows only with its URL, and no visible link has `href="#"`. Findings, fixes and limitations are listed in `artifacts/validation.md`.
 
 ## Publish
 
@@ -68,7 +68,7 @@ site/            source (index.html, 404.html, css/styles.css, js/*.js, assets/)
 dist/            production export (committed)
 mock/            simd-coin.json used by dev/preview/test servers only
 test/            check-interactions.mjs, browser-check.mjs (test/scratch is throwaway)
-artifacts/       validation.md and screenshots from the browser run
+artifacts/       validation.md (committed); the browser run writes screenshots/ here (not committed)
 DESIGN.md        design system documentation
 vite.config.ts   root=site, base=./, stable asset names, mock JSON middleware
 ```

@@ -65,6 +65,18 @@ await check('page has one h1, eight sections with headings, skip link and main l
   assert.ok(html.includes('<main id="main"'));
 });
 
+await check('community links start hidden with href="#" and the stylesheet makes [hidden] win over .btn', () => {
+  // .btn sets display: inline-flex, which would beat the user-agent [hidden] rule; the base block must override it.
+  const css = readFileSync(join(dist, 'assets/styles.css'), 'utf8');
+  assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(css), 'missing global [hidden] { display: none !important } rule');
+  for (const attr of ['data-x-link', 'data-telegram-link']) {
+    const tag = html.match(new RegExp(`<a[^>]*${attr}[^>]*>`));
+    assert.ok(tag, `missing a[${attr}]`);
+    assert.ok(/\shidden[\s>]/.test(tag[0]), `a[${attr}] must start hidden`);
+    assert.ok(tag[0].includes('href="#"'), `a[${attr}] keeps href="#" until the feed supplies a URL`);
+  }
+});
+
 await check('live data: code fetches /simd-coin.json and refreshes every 30 s', () => {
   const js = readFileSync(join(dist, 'assets/index.js'), 'utf8');
   assert.ok(js.includes('/simd-coin.json'));

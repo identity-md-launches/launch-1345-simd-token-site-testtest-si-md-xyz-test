@@ -123,6 +123,10 @@
 /* --- Base --------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* The hidden attribute must win over every author display rule (.btn is inline-flex,
+   so without this the X / Telegram links were drawn with href="#" when the feed has none). */
+[hidden] { display: none !important; }
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
