@@ -1,0 +1,21 @@
+{
+  "name": "TEST",
+  "symbol": "TEST",
+  "token": "0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF",
+  "chain": "solana",
+  "chainName": "Solana",
+  "logo": "https://static.four.meme/market/1012XvzP8z2Kbi.png",
+  "x": "https://x.com/search?q=%24TEST",
+  "telegram": null,
+  "status": "live",
+  "chartUrl": "https://dexscreener.com/solana/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF",
+  "coinUrl": "https://dexscreener.com/solana/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF",
+  "buyUrl": "https://dexscreener.com/solana/0x697213C3747a6d4F83f8d2d8C0cC7f44a5edfffF",
+  "site": { "label": "testtest", "kind": "token" },
+  "market": {
+    "priceUsd": 0.00004269,
+    "marketCap": 42690,
+    "liquidityUsd": 12800,
+    "volume24h": 9450
+  }
+}

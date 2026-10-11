@@ -1,0 +1,19 @@
+{
+  "name": "test-token-site",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Website of TEST ($TEST) built by the Identity.md swarm",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run build && node test/check-interactions.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4"
+  }
+}
